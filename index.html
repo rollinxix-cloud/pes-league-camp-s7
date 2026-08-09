@@ -6,7 +6,7 @@
     <title>PES LEAGUE CAMP S7</title>
     <!-- Tailwind CSS v4 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- FontAwesome for Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- HTML2Canvas Library for Image Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -44,7 +44,7 @@
                 </div>
             </div>
 
-            <!-- Header Quick Controls & Dynamic Match Counter -->
+            <!-- Header Quick Controls & Dynamic Badges -->
             <div class="flex items-center gap-3 text-xs font-semibold flex-wrap justify-center">
                 <span class="bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-lg flex items-center gap-2 text-cyan-400">
                     <i class="fa-solid fa-users"></i> <span id="totalPlayersBadge">10 Slots</span>
@@ -53,13 +53,18 @@
                     <i class="fa-solid fa-gamepad"></i> <span id="totalMatchesBadge">45 Matches</span>
                 </span>
 
-                <!-- Admin Mode Lock Button -->
+                <!-- Admin Unlock Button -->
                 <button id="adminBtn" onclick="toggleAdminMode()" class="bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-2">
                     <i id="adminLockIcon" class="fa-solid fa-lock"></i>
                     <span id="adminBtnText">Admin Unlock</span>
                 </button>
 
-                <!-- Admin Only Reset Button -->
+                <!-- Admin Export Updated index.html File -->
+                <button id="exportHtmlBtn" onclick="exportUpdatedHTML()" class="hidden bg-cyan-600 hover:bg-cyan-500 border border-cyan-400/30 text-white font-bold px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-md">
+                    <i class="fa-solid fa-file-arrow-down"></i> Export index.html
+                </button>
+
+                <!-- Admin Reset Button -->
                 <button id="resetBtn" onclick="resetTournamentData()" class="hidden bg-red-600/20 hover:bg-red-600 border border-red-500/30 text-red-400 hover:text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5">
                     <i class="fa-solid fa-rotate-right"></i> Reset Season
                 </button>
@@ -162,19 +167,30 @@
 
     <!-- Application Script -->
     <script>
+        // HARDCODED BASE DATA (Updated dynamically upon exporting)
         const DEFAULT_PLAYERS = [
-            "Player 1", "Player 2", "Player 3", "Player 4", "Player 5",
-            "Player 6", "Player 7", "Player 8", "Player 9", "Player 10"
+            "Player 1",
+            "Player 2",
+            "Player 3",
+            "Player 4",
+            "Player 5",
+            "Player 6",
+            "Player 7",
+            "Player 8",
+            "Player 9",
+            "Player 10"
         ];
         
-        // ADMIN PIN
+        const SAVED_MATCHES = [];
+
+        // ADMIN ACCESS PIN
         const ADMIN_PIN = "1a234";
         let isAdmin = false;
 
-        let players = JSON.parse(localStorage.getItem('pes_s7_players')) || [...DEFAULT_PLAYERS];
-        let matches = JSON.parse(localStorage.getItem('pes_s7_matches')) || [];
+        let players = [...DEFAULT_PLAYERS];
+        let matches = SAVED_MATCHES.length > 0 ? SAVED_MATCHES : (JSON.parse(localStorage.getItem('pes_s7_matches')) || []);
 
-        // Initialize App
+        // App Initialization
         window.addEventListener('DOMContentLoaded', () => {
             if (matches.length === 0) {
                 generateFixtures();
@@ -192,26 +208,20 @@
             localStorage.setItem('pes_s7_matches', JSON.stringify(matches));
         }
 
-        // Dynamically update header count badges
         function updateDynamicBadges() {
             const matchesBadge = document.getElementById('totalMatchesBadge');
             const playersBadge = document.getElementById('totalPlayersBadge');
             
-            if (matchesBadge) {
-                matchesBadge.textContent = `${matches.length} Matches`;
-            }
-            if (playersBadge) {
-                playersBadge.textContent = `${players.length} Slots`;
-            }
+            if (matchesBadge) matchesBadge.textContent = `${matches.length} Matches`;
+            if (playersBadge) playersBadge.textContent = `${players.length} Slots`;
         }
 
-        // Toggle Admin Unlocking
         function toggleAdminMode() {
             if (isAdmin) {
                 isAdmin = false;
                 alert("Logged out of Admin Mode.");
             } else {
-                const pin = prompt("Enter Admin PIN to edit standings and rosters:");
+                const pin = prompt("Enter Admin PIN:");
                 if (pin === ADMIN_PIN) {
                     isAdmin = true;
                     alert("Admin Mode Unlocked!");
@@ -229,6 +239,7 @@
             const lockIcon = document.getElementById('adminLockIcon');
             const resetBtn = document.getElementById('resetBtn');
             const updateRosterBtn = document.getElementById('updateRosterBtn');
+            const exportHtmlBtn = document.getElementById('exportHtmlBtn');
             const adminBtn = document.getElementById('adminBtn');
 
             if (isAdmin) {
@@ -237,12 +248,14 @@
                 adminBtn.className = "bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500 hover:text-black px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-2";
                 resetBtn.classList.remove('hidden');
                 updateRosterBtn.classList.remove('hidden');
+                exportHtmlBtn.classList.remove('hidden');
             } else {
                 btnText.textContent = "Admin Unlock";
                 lockIcon.className = "fa-solid fa-lock";
                 adminBtn.className = "bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-2";
                 resetBtn.classList.add('hidden');
                 updateRosterBtn.classList.add('hidden');
+                exportHtmlBtn.classList.add('hidden');
             }
         }
 
@@ -252,7 +265,6 @@
             const tempPlayers = players.map((_, i) => i);
             let matchId = 1;
 
-            // Single Round-Robin Algorithm (Creates exactly 45 matches for 10 players across 9 rounds)
             for (let round = 0; round < n - 1; round++) {
                 for (let i = 0; i < n / 2; i++) {
                     const home = tempPlayers[i];
@@ -330,16 +342,7 @@
 
         function calculateAndRenderStandings() {
             const stats = players.map((name, index) => ({
-                index,
-                name,
-                mp: 0,
-                w: 0,
-                d: 0,
-                l: 0,
-                gf: 0,
-                ga: 0,
-                gd: 0,
-                pts: 0
+                index, name, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
             }));
 
             matches.forEach(m => {
@@ -347,41 +350,26 @@
                     const h = stats[m.homeIndex];
                     const a = stats[m.awayIndex];
 
-                    h.mp++;
-                    a.mp++;
-                    h.gf += m.homeScore;
-                    h.ga += m.awayScore;
-                    a.gf += m.awayScore;
-                    a.ga += m.homeScore;
+                    h.mp++; a.mp++;
+                    h.gf += m.homeScore; h.ga += m.awayScore;
+                    a.gf += m.awayScore; a.ga += m.homeScore;
 
                     if (m.homeScore > m.awayScore) {
-                        h.w++;
-                        h.pts += 3;
-                        a.l++;
+                        h.w++; h.pts += 3; a.l++;
                     } else if (m.homeScore < m.awayScore) {
-                        a.w++;
-                        a.pts += 3;
-                        h.l++;
+                        a.w++; a.pts += 3; h.l++;
                     } else {
-                        h.d++;
-                        a.d++;
-                        h.pts += 1;
-                        a.pts += 1;
+                        h.d++; a.d++; h.pts += 1; a.pts += 1;
                     }
                 }
             });
 
-            stats.forEach(s => {
-                s.gd = s.gf - s.ga;
-            });
-
+            stats.forEach(s => { s.gd = s.gf - s.ga; });
             stats.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.name.localeCompare(b.name));
 
             const tbody = document.getElementById('standingsTableBody');
             tbody.innerHTML = stats.map((s, rank) => {
-                let rankBadge = `${rank + 1}`;
                 let rowBg = "hover:bg-gray-800/40";
-                
                 if (rank === 0) rowBg += " bg-yellow-500/5";
                 else if (rank === 1) rowBg += " bg-gray-400/5";
                 else if (rank === 2) rowBg += " bg-amber-600/5";
@@ -389,11 +377,9 @@
                 return `
                     <tr class="${rowBg} transition-colors">
                         <td class="px-3 py-3 text-center font-bold text-xs ${rank === 0 ? 'text-yellow-400' : rank === 1 ? 'text-gray-300' : rank === 2 ? 'text-amber-500' : 'text-gray-500'}">
-                            ${rankBadge}
+                            ${rank + 1}
                         </td>
-                        <td class="px-4 py-3 font-semibold text-white flex items-center gap-2">
-                            ${s.name}
-                        </td>
+                        <td class="px-4 py-3 font-semibold text-white flex items-center gap-2">${s.name}</td>
                         <td class="px-2 py-3 text-center text-gray-300">${s.mp}</td>
                         <td class="px-2 py-3 text-center text-emerald-400">${s.w}</td>
                         <td class="px-2 py-3 text-center text-yellow-400">${s.d}</td>
@@ -454,6 +440,35 @@
             `).join('');
         }
 
+        // EXPORT UPDATED INDEX.HTML FILE WITH EMBEDDED SCORES & ROSTER
+        function exportUpdatedHTML() {
+            if (!isAdmin) return;
+
+            savePlayerNames();
+
+            let rawHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+            // Replace DEFAULT_PLAYERS definition with current JS state
+            const playersPattern = /const DEFAULT_PLAYERS = \[[\s\S]*?\];/;
+            const updatedPlayers = `const DEFAULT_PLAYERS = ${JSON.stringify(players, null, 12)};`;
+            rawHtml = rawHtml.replace(playersPattern, updatedPlayers);
+
+            // Replace SAVED_MATCHES definition with current match array state
+            const matchesPattern = /const SAVED_MATCHES = \[[\s\S]*?\];/;
+            const updatedMatches = `const SAVED_MATCHES = ${JSON.stringify(matches, null, 12)};`;
+            rawHtml = rawHtml.replace(matchesPattern, updatedMatches);
+
+            // Generate blob download link
+            const blob = new Blob([rawHtml], { type: "text/html;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "index.html";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
         function exportStandingsPoster() {
             const element = document.getElementById('standingsPosterCard');
             const posterHeader = document.getElementById('posterHeader');
@@ -485,7 +500,9 @@
 
         function resetTournamentData() {
             if (!isAdmin) return;
-            if (confirm("Are you sure you want to reset all standings and fixtures for PES LEAGUE CAMP S7?")) {
+            if (confirm("Reset all standings and fixtures back to default?")) {
+                localStorage.removeItem('pes_s7_players');
+                localStorage.removeItem('pes_s7_matches');
                 players = [...DEFAULT_PLAYERS];
                 generateFixtures();
                 renderPlayerInputs();
