@@ -1033,7 +1033,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- HTML2Canvas Library for Image Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     <style>
         body {
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -1895,30 +1895,38 @@
         }
 
         function exportStandingsPoster() {
-            const posterCard = document.getElementById('standingsPosterCard');
-            const posterHeader = document.getElementById('posterHeader');
-            const posterFooter = document.getElementById('posterFooter');
+    const posterCard = document.getElementById('standingsPosterCard');
+    const posterHeader = document.getElementById('posterHeader');
+    const posterFooter = document.getElementById('posterFooter');
 
-            if (posterHeader) posterHeader.classList.remove('hidden');
-            if (posterFooter) posterFooter.classList.remove('hidden');
+    // Show header/footer for PNG layout
+    if (posterHeader) posterHeader.classList.remove('hidden');
+    if (posterFooter) posterFooter.classList.remove('hidden');
 
-            html2canvas(posterCard, {
-                backgroundColor: '#030712',
-                scale: 2
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'PES_LEAGUE_CAMP_S7_Standings.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
+    htmlToImage.toPng(posterCard, {
+        backgroundColor: '#030712',
+        pixelRatio: 2,
+        cacheBust: true
+    })
+    .then(dataUrl => {
+        const link = document.createElement('a');
+        link.download = 'PES_LEAGUE_CAMP_S7_Standings.png';
+        link.href = dataUrl;
+        link.click();
 
-                if (posterHeader) posterHeader.classList.add('hidden');
-                if (posterFooter) posterFooter.classList.add('hidden');
-            }).catch(err => {
-                console.error('Error generating image poster:', err);
-                if (posterHeader) posterHeader.classList.add('hidden');
-                if (posterFooter) posterFooter.classList.add('hidden');
-            });
-        }
+        // Restore UI view
+        if (posterHeader) posterHeader.classList.add('hidden');
+        if (posterFooter) posterFooter.classList.add('hidden');
+    })
+    .catch(err => {
+        console.error('Error generating image poster:', err);
+        alert("Export failed. If running directly from a file (file://), please open the HTML using a local server (like VS Code Live Server).");
+        
+        if (posterHeader) posterHeader.classList.add('hidden');
+        if (posterFooter) posterFooter.classList.add('hidden');
+    });
+}
+
 
         function resetTournamentData() {
             if (!isAdmin) return;
